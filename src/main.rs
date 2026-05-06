@@ -4,21 +4,17 @@ mod command;
 mod ticket;
 
 use rusqlite::Connection;
-use std::{
-    error::Error,
-    sync::{Arc, Mutex},
-};
+use std::io::Result;
+use std::sync::{Arc, Mutex};
 
 use crate::{app::App, app_state::AppState};
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let conn: Connection = Connection::open("data.db")?;
+fn main() -> Result<()> {
+    let conn: Connection = Connection::open("data.db").expect("data.db must be created");
 
     let state: Arc<AppState> = Arc::new(AppState {
         conn: Arc::new(Mutex::new(conn)),
     });
 
-    App::new(state).run();
-
-    Ok(())
+    ratatui::run(|term| App::new(state).run(term))
 }

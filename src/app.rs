@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use ratatui::DefaultTerminal;
+use std::io::Result;
+
 use crate::{app_state::AppState, command::CommandManager};
 
 pub struct App {
@@ -19,9 +22,18 @@ impl App {
         }
     }
 
-    pub fn run(&self) {
-        while self.running {}
+    pub fn run(&mut self, term: &DefaultTerminal) -> Result<()> {
+        while self.running {
+            self.handle_events()?;
+            self.render();
+        }
+
+        Ok(())
     }
 
-    pub fn render() {}
+    pub fn handle_events(&mut self) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn render(&self) {}
 }
