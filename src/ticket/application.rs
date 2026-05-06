@@ -19,17 +19,13 @@ pub trait TicketRepository: Send + Sync {
     fn set_priority(&self, id: &str, priority: TicketPriority) -> Result<(), Box<dyn Error + '_>>;
 }
 
-pub struct TicketService<T> {
-    state: Arc<AppState>,
-    registry: T,
+pub struct TicketService {
+    registry: Box<dyn TicketRepository>,
 }
 
-impl TicketService<Box<dyn TicketRepository>> {
-    pub fn new(state: Arc<AppState>) -> Self {
-        let conn: Arc<Mutex<Connection>> = state.conn.clone();
-
+impl TicketService {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
-            state,
             registry: Box::new(SqliteTicketRepository::new(conn)),
         }
     }
