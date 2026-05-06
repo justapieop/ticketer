@@ -115,3 +115,33 @@ impl TicketRepository for SqliteTicketRepository {
         ticket_iter.filter_map(Result::ok).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ticket::domain::TicketPriority;
+    use rusqlite::Connection;
+    use std::sync::{Arc, Mutex};
+
+    fn setup_repository() -> SqliteTicketRepository {
+        let conn = Connection::open_in_memory().expect("Failed to create in-memory database");
+        let shared_conn = Arc::new(Mutex::new(conn));
+        SqliteTicketRepository::new(shared_conn)
+    }
+
+    #[test]
+    fn test_save_and_list_ticket() {
+        let repo = setup_repository();
+
+        assert!(repo.list_ticket().is_empty());
+
+        let ticket1 = Ticket::new("Issue 1", "App crashes", TicketPriority::Urgent);
+        let ticket2 = Ticket::new("Issue 2", "Typo in UI", TicketPriority::Standard);
+
+        repo.save_ticket(ticket1).unwrap();
+        repo.save_ticket(ticket2).unwrap();
+
+        let tickets = repo.list_ticket();
+        assert_eq!(tickets.len(), 2);
+    }
+}

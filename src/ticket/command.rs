@@ -31,14 +31,19 @@ impl Command for CreateTicketCommand {
     ) -> Result<(), Box<dyn std::error::Error>> {
         if args.len() < 2 {
             let mut output = state.output.lock().unwrap();
-            *output = crate::app_state::AppOutput::Text(String::from("Usage: create <title> <subject>"));
+            *output =
+                crate::app_state::AppOutput::Text(String::from("Usage: create <title> <subject>"));
             return Ok(());
         }
 
         let title = &args[0];
         let subject = &args[1..].join(" ");
-        let ticket = Ticket::new(title, subject, crate::ticket::domain::TicketPriority::Standard);
-        
+        let ticket = Ticket::new(
+            title,
+            subject,
+            crate::ticket::domain::TicketPriority::Standard,
+        );
+
         let id_str = ticket.id.to_string();
         state.ticket_service.save_ticket(ticket)?;
 

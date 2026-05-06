@@ -60,3 +60,32 @@ impl Ticket {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ticket_new() {
+        let title = "Test Title";
+        let subject = "Test Subject Context";
+        let ticket = Ticket::new(title, subject, TicketPriority::Standard);
+
+        assert_eq!(ticket.title, title);
+        assert_eq!(ticket.subject, subject);
+        assert!(matches!(ticket.priority, TicketPriority::Standard));
+        assert!(!ticket.closed);
+        assert!(ticket.closed_at.is_none());
+        assert!(ticket.last_updated_at.is_none());
+    }
+
+    #[test]
+    fn test_ticket_priority_values() {
+        assert!(matches!(TicketPriority::Standard, TicketPriority::Standard));
+        assert!(matches!(
+            TicketPriority::Prioritized,
+            TicketPriority::Prioritized
+        ));
+        assert!(matches!(TicketPriority::Urgent, TicketPriority::Urgent));
+    }
+}
