@@ -2,7 +2,11 @@ use std::{collections::HashMap, error::Error, sync::Arc};
 
 use regex::Regex;
 
-use crate::{app_state::AppState, misc::exit::ExitCommand};
+use crate::{
+    app_state::AppState,
+    misc::exit::ExitCommand,
+    ticket::command::{CreateTicketCommand, ListTicketCommand},
+};
 
 pub struct CommandManager {
     commands: HashMap<String, Box<dyn Command>>,
@@ -16,10 +20,14 @@ pub trait Command: Send + Sync {
 
 impl CommandManager {
     pub fn new(state: Arc<AppState>) -> Self {
-        let commands = [Box::new(ExitCommand {}) as Box<dyn Command>]
-            .into_iter()
-            .map(|cmd| (cmd.name(), cmd))
-            .collect();
+        let mut commands = HashMap::new();
+        let mut register = |cmd: Box<dyn Command>| {
+            commands.insert(cmd.name(), cmd);
+        };
+
+        register(Box::new(ExitCommand {}));
+        register(Box::new(ListTicketCommand {}));
+        register(Box::new(CreateTicketCommand {}));
 
         Self { commands, state }
     }
