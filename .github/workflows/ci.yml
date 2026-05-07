@@ -1,0 +1,35 @@
+name: Test and Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+        
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+      
+    - name: Check Formatting
+      run: cargo fmt -- --check
+
+    - name: Run Clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Run Tests
+      run: cargo test --verbose
