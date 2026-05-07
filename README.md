@@ -2,7 +2,7 @@
 
 CLI tools written in Rust to manage tickets
 
-# commands
+# Commands
 
 Create a ticket
 
@@ -33,4 +33,21 @@ Exit the app
 
 ```bash
 exit
+```
+
+# Build instruction
+
+You will need the rust toolchain for this. Download [here](https://rustup.rs/)
+
+Before any builds, run tests:
+
+```bash
+cargo clippy -- -D warnings
+cargo test --verbose
+```
+
+Build the project
+
+```bash
+cargo build --release
 ```
