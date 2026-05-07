@@ -48,7 +48,7 @@ impl CommandManager {
     pub fn exec(&self, command_name: &str, args: Vec<String>) -> Result<(), Box<dyn Error>> {
         let parsed_command_name: String = String::from(command_name);
 
-        let command: &Box<dyn Command> = match self.commands.get(&parsed_command_name) {
+        let command = match self.commands.get(&parsed_command_name) {
             Some(s) => s,
             None => return Err("Command not found".into()),
         };
