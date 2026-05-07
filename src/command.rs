@@ -5,7 +5,9 @@ use regex::Regex;
 use crate::{
     app_state::AppState,
     misc::exit::ExitCommand,
-    ticket::command::{CreateTicketCommand, ListTicketCommand},
+    ticket::command::{
+        CreateTicketCommand, DisplayTicketCommand, EditTicketCommand, ListTicketCommand,
+    },
 };
 
 pub struct CommandManager {
@@ -28,6 +30,8 @@ impl CommandManager {
         register(Box::new(ExitCommand {}));
         register(Box::new(ListTicketCommand {}));
         register(Box::new(CreateTicketCommand {}));
+        register(Box::new(DisplayTicketCommand {}));
+        register(Box::new(EditTicketCommand {}));
 
         Self { commands, state }
     }
