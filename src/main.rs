@@ -1,16 +1,13 @@
-mod app;
-mod app_state;
-mod command;
-mod misc;
-mod ticket;
-
 use rusqlite::Connection;
 use std::io::Result;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-use crate::ticket::application::TicketService;
-use crate::{app::App, app_state::AppState};
+use ticketer::ticket::application::TicketService;
+use ticketer::{
+    app::App,
+    app_state::{AppMode, AppOutput, AppState},
+};
 
 fn main() -> Result<()> {
     let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(
@@ -21,8 +18,8 @@ fn main() -> Result<()> {
         conn: conn.clone(),
         running: AtomicBool::from(true),
         ticket_service: Arc::new(TicketService::new(conn.clone())),
-        output: Mutex::new(app_state::AppOutput::None),
-        mode: Mutex::new(app_state::AppMode::Normal),
+        output: Mutex::new(AppOutput::None),
+        mode: Mutex::new(AppMode::Normal),
     });
 
     ratatui::run(|term| App::new(state).run(term))

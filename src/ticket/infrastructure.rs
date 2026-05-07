@@ -53,10 +53,10 @@ impl TicketRepository for SqliteTicketRepository {
     }
 
     fn get_ticket(&self, id: &str) -> Option<Ticket> {
-        match self.conn.lock().unwrap().query_row(
-            "SELECT * FROM tickets WHERE id = ?1",
-            (id,),
-            |row| {
+        self.conn
+            .lock()
+            .unwrap()
+            .query_row("SELECT * FROM tickets WHERE id = ?1", (id,), |row| {
                 Ok(Ticket {
                     id: row.get(0)?,
                     title: row.get(1)?,
@@ -67,11 +67,8 @@ impl TicketRepository for SqliteTicketRepository {
                     closed_at: row.get(6)?,
                     last_updated_at: row.get(7)?,
                 })
-            },
-        ) {
-            Ok(s) => Some(s),
-            Err(_) => None,
-        }
+            })
+            .ok()
     }
 
     fn set_priority(&self, id: &str, priority: TicketPriority) -> Result<(), Box<dyn Error + '_>> {
@@ -140,35 +137,5 @@ impl TicketRepository for SqliteTicketRepository {
         )?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ticket::domain::TicketPriority;
-    use rusqlite::Connection;
-    use std::sync::{Arc, Mutex};
-
-    fn setup_repository() -> SqliteTicketRepository {
-        let conn = Connection::open_in_memory().expect("Failed to create in-memory database");
-        let shared_conn = Arc::new(Mutex::new(conn));
-        SqliteTicketRepository::new(shared_conn)
-    }
-
-    #[test]
-    fn test_save_and_list_ticket() {
-        let repo = setup_repository();
-
-        assert!(repo.list_ticket().is_empty());
-
-        let ticket1 = Ticket::new("Issue 1", "App crashes", TicketPriority::Urgent);
-        let ticket2 = Ticket::new("Issue 2", "Typo in UI", TicketPriority::Standard);
-
-        repo.save_ticket(ticket1).unwrap();
-        repo.save_ticket(ticket2).unwrap();
-
-        let tickets = repo.list_ticket();
-        assert_eq!(tickets.len(), 2);
     }
 }

@@ -132,11 +132,10 @@ impl App {
                     }
                     AppMode::EditingTitle(id) => {
                         let new_title = self.input.trim().to_string();
-                        if !new_title.is_empty() {
-                            if let Err(e) = self.state.ticket_service.set_title(&id, &new_title) {
+                        if !new_title.is_empty()
+                            && let Err(e) = self.state.ticket_service.set_title(&id, &new_title) {
                                 self.last_error = Some(e.to_string());
                             }
-                        }
                         if self.last_error.is_none() {
                             self.input.clear();
                             let mut guard = self.state.mode.lock().unwrap();
@@ -150,12 +149,11 @@ impl App {
                     }
                     AppMode::EditingSubject(id) => {
                         let new_subject = self.input.trim().to_string();
-                        if !new_subject.is_empty() {
-                            if let Err(e) = self.state.ticket_service.set_subject(&id, &new_subject)
+                        if !new_subject.is_empty()
+                            && let Err(e) = self.state.ticket_service.set_subject(&id, &new_subject)
                             {
                                 self.last_error = Some(e.to_string());
                             }
-                        }
                         if self.last_error.is_none() {
                             self.input.clear();
                             let mut guard = self.state.mode.lock().unwrap();
@@ -184,11 +182,10 @@ impl App {
                                     None
                                 }
                             };
-                            if let Some(p) = priority {
-                                if let Err(e) = self.state.ticket_service.set_priority(&id, p) {
+                            if let Some(p) = priority
+                                && let Err(e) = self.state.ticket_service.set_priority(&id, p) {
                                     self.last_error = Some(e.to_string());
                                 }
-                            }
                         }
                         if self.last_error.is_none() {
                             self.input.clear();
@@ -230,8 +227,8 @@ impl App {
             }
             KeyCode::Down => {
                 let is_normal = matches!(*self.state.mode.lock().unwrap(), AppMode::Normal);
-                if is_normal {
-                    if let Some(i) = self.history_index {
+                if is_normal
+                    && let Some(i) = self.history_index {
                         if i + 1 < self.history.len() {
                             self.history_index = Some(i + 1);
                             self.input = self.history[i + 1].clone();
@@ -240,7 +237,6 @@ impl App {
                             self.input.clear();
                         }
                     }
-                }
             }
             _ => {}
         }

@@ -41,7 +41,7 @@ impl CommandManager {
         re.replace_all(&msg, " ")
             .trim()
             .split(" ")
-            .map(|s| String::from(s))
+            .map(String::from)
             .collect()
     }
 
