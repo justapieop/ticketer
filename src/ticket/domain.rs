@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
+use nanoid::nanoid;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, Value, ValueRef};
-use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Ticket {
-    pub id: Uuid,
+    pub id: String,
     pub title: String,
     pub subject: String,
     pub priority: TicketPriority,
@@ -49,7 +49,7 @@ impl FromSql for TicketPriority {
 impl Ticket {
     pub fn new(title: &str, subject: &str, priority: TicketPriority) -> Self {
         Self {
-            id: Uuid::now_v7(),
+            id: nanoid!(),
             title: String::from(title),
             subject: String::from(subject),
             priority,

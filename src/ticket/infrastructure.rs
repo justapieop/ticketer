@@ -22,7 +22,7 @@ impl SqliteTicketRepository {
             .execute(
                 r#"
             CREATE TABLE IF NOT EXISTS tickets (
-              id BLOB PRIMARY KEY,
+              id TEXT PRIMARY KEY,
               title TEXT NOT NULL,
               subject TEXT NOT NULL,
               priority INTEGER NOT NULL DEFAULT 0,
@@ -53,7 +53,7 @@ impl TicketRepository for SqliteTicketRepository {
     }
 
     fn get_ticket(&self, id: &str) -> Option<Ticket> {
-        match self.conn.lock().unwrap().query_one(
+        match self.conn.lock().unwrap().query_row(
             "SELECT * FROM tickets WHERE id = ?1",
             (id,),
             |row| {
@@ -77,7 +77,7 @@ impl TicketRepository for SqliteTicketRepository {
     fn set_priority(&self, id: &str, priority: TicketPriority) -> Result<(), Box<dyn Error + '_>> {
         self.conn.lock()?.execute(
             r#"
-            UPDATE tickets SET priority = ?1 WHERE id = ?2;
+            UPDATE tickets SET priority = ?1, last_updated_at = CURRENT_TIMESTAMP WHERE id = ?2;
         "#,
             (priority, id),
         )?;
@@ -113,6 +113,33 @@ impl TicketRepository for SqliteTicketRepository {
         };
 
         ticket_iter.filter_map(Result::ok).collect()
+    }
+
+    fn close_ticket(&self, id: &str) -> Result<(), Box<dyn Error + '_>> {
+        self.conn.lock()?.execute(
+            r#"
+            UPDATE tickets SET closed = true, closed_at = CURRENT_TIMESTAMP, last_updated_at = CURRENT_TIMESTAMP WHERE id = ?1
+        "#,
+            (id,) ,
+        )?;
+        Ok(())
+    }
+
+    fn set_title(&self, id: &str, title: &str) -> Result<(), Box<dyn Error + '_>> {
+        self.conn
+            .lock()?
+            .execute("UPDATE tickets SET title = ?1 WHERE id = ?2", (title, id))?;
+
+        Ok(())
+    }
+
+    fn set_subject(&self, id: &str, subject: &str) -> Result<(), Box<dyn Error + '_>> {
+        self.conn.lock()?.execute(
+            "UPDATE tickets SET subject = ?1 WHERE id = ?2",
+            (subject, id),
+        )?;
+
+        Ok(())
     }
 }
 

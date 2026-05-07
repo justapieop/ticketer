@@ -116,7 +116,7 @@ impl App {
                             .iter()
                             .map(|t| {
                                 Row::new(vec![
-                                    t.id.to_string()[..8].to_string(), // Shorter ID for table
+                                    t.id.to_string(), // Full ID for table
                                     t.title.clone(),
                                     t.subject.clone(),
                                     format!("{:?}", t.priority),
@@ -130,7 +130,7 @@ impl App {
                             .collect();
 
                         let widths = [
-                            Constraint::Length(8),
+                            Constraint::Length(36),
                             Constraint::Max(20),
                             Constraint::Percentage(40),
                             Constraint::Length(15),
