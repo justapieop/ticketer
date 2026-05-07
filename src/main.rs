@@ -22,6 +22,7 @@ fn main() -> Result<()> {
         running: AtomicBool::from(true),
         ticket_service: Arc::new(TicketService::new(conn.clone())),
         output: Mutex::new(app_state::AppOutput::None),
+        mode: Mutex::new(app_state::AppMode::Normal),
     });
 
     ratatui::run(|term| App::new(state).run(term))

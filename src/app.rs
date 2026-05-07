@@ -10,7 +10,7 @@ use ratatui::{
 use std::io::Result;
 
 use crate::{
-    app_state::{AppOutput, AppState},
+    app_state::{AppMode, AppOutput, AppState},
     command::CommandManager,
 };
 
@@ -19,6 +19,8 @@ pub struct App {
     command_manager: CommandManager,
     input: String,
     last_error: Option<String>,
+    history: Vec<String>,
+    history_index: Option<usize>,
 }
 
 impl App {
@@ -30,6 +32,8 @@ impl App {
             command_manager: CommandManager::new(cloned_state),
             input: String::new(),
             last_error: None,
+            history: Vec::new(),
+            history_index: None,
         }
     }
 
@@ -61,17 +65,182 @@ impl App {
                 self.input.pop();
             }
             KeyCode::Enter => {
-                if !self.input.trim().is_empty() {
-                    let args = self.command_manager.parse_message(self.input.clone());
-                    if let Some((cmd_name, exec_args)) = args.split_first() {
-                        self.last_error = self
-                            .command_manager
-                            .exec(cmd_name, exec_args.to_vec())
-                            .err()
-                            .map(|e| e.to_string());
+                let current_mode = {
+                    let guard = self.state.mode.lock().unwrap();
+                    match &*guard {
+                        AppMode::Normal => AppMode::Normal,
+                        AppMode::ChoosingEditField(id) => AppMode::ChoosingEditField(id.clone()),
+                        AppMode::EditingTitle(id) => AppMode::EditingTitle(id.clone()),
+                        AppMode::EditingSubject(id) => AppMode::EditingSubject(id.clone()),
+                        AppMode::EditingPriority(id) => AppMode::EditingPriority(id.clone()),
+                    }
+                };
+
+                self.last_error = None;
+
+                match current_mode {
+                    AppMode::Normal => {
+                        if !self.input.trim().is_empty() {
+                            self.history.push(self.input.clone());
+                            self.history_index = None;
+                            let args = self.command_manager.parse_message(self.input.clone());
+                            if let Some((cmd_name, exec_args)) = args.split_first() {
+                                self.last_error = self
+                                    .command_manager
+                                    .exec(cmd_name, exec_args.to_vec())
+                                    .err()
+                                    .map(|e| e.to_string());
+                            }
+                        }
+                        self.input.clear();
+                    }
+                    AppMode::ChoosingEditField(id) => {
+                        match self.input.trim() {
+                            "1" => {
+                                let mut guard = self.state.mode.lock().unwrap();
+                                *guard = AppMode::EditingTitle(id);
+                            }
+                            "2" => {
+                                let mut guard = self.state.mode.lock().unwrap();
+                                *guard = AppMode::EditingSubject(id);
+                            }
+                            "3" => {
+                                let mut guard = self.state.mode.lock().unwrap();
+                                *guard = AppMode::EditingPriority(id);
+                            }
+                            "4" => {
+                                if let Err(e) = self.state.ticket_service.close_ticket(&id) {
+                                    self.last_error = Some(e.to_string());
+                                } else {
+                                    let mut guard = self.state.mode.lock().unwrap();
+                                    *guard = AppMode::Normal;
+                                    let mut output = self.state.output.lock().unwrap();
+                                    *output = crate::app_state::AppOutput::Text(format!(
+                                        "Ticket {} closed",
+                                        id
+                                    ));
+                                }
+                            }
+                            _ => {
+                                self.last_error =
+                                    Some("Invalid option. Enter 1, 2, 3, or 4.".to_string());
+                            }
+                        }
+                        if self.last_error.is_none() {
+                            self.input.clear();
+                        }
+                    }
+                    AppMode::EditingTitle(id) => {
+                        let new_title = self.input.trim().to_string();
+                        if !new_title.is_empty() {
+                            if let Err(e) = self.state.ticket_service.set_title(&id, &new_title) {
+                                self.last_error = Some(e.to_string());
+                            }
+                        }
+                        if self.last_error.is_none() {
+                            self.input.clear();
+                            let mut guard = self.state.mode.lock().unwrap();
+                            *guard = AppMode::Normal;
+                            let mut output = self.state.output.lock().unwrap();
+                            *output = crate::app_state::AppOutput::Text(format!(
+                                "Ticket {} title updated",
+                                id
+                            ));
+                        }
+                    }
+                    AppMode::EditingSubject(id) => {
+                        let new_subject = self.input.trim().to_string();
+                        if !new_subject.is_empty() {
+                            if let Err(e) = self.state.ticket_service.set_subject(&id, &new_subject)
+                            {
+                                self.last_error = Some(e.to_string());
+                            }
+                        }
+                        if self.last_error.is_none() {
+                            self.input.clear();
+                            let mut guard = self.state.mode.lock().unwrap();
+                            *guard = AppMode::Normal;
+                            let mut output = self.state.output.lock().unwrap();
+                            *output = crate::app_state::AppOutput::Text(format!(
+                                "Ticket {} subject updated",
+                                id
+                            ));
+                        }
+                    }
+                    AppMode::EditingPriority(id) => {
+                        let new_priority = self.input.trim().to_lowercase();
+                        if !new_priority.is_empty() {
+                            let priority = match new_priority.as_str() {
+                                "urgent" => Some(crate::ticket::domain::TicketPriority::Urgent),
+                                "prioritized" => {
+                                    Some(crate::ticket::domain::TicketPriority::Prioritized)
+                                }
+                                "standard" => Some(crate::ticket::domain::TicketPriority::Standard),
+                                _ => {
+                                    self.last_error = Some(
+                                        "Invalid priority (use: standard, prioritized, urgent)"
+                                            .to_string(),
+                                    );
+                                    None
+                                }
+                            };
+                            if let Some(p) = priority {
+                                if let Err(e) = self.state.ticket_service.set_priority(&id, p) {
+                                    self.last_error = Some(e.to_string());
+                                }
+                            }
+                        }
+                        if self.last_error.is_none() {
+                            self.input.clear();
+                            let mut guard = self.state.mode.lock().unwrap();
+                            *guard = AppMode::Normal;
+                            let mut output = self.state.output.lock().unwrap();
+                            *output =
+                                crate::app_state::AppOutput::Text(format!("Ticket {} updated", id));
+                        }
                     }
                 }
-                self.input.clear();
+            }
+            KeyCode::Esc => {
+                let mut guard = self.state.mode.lock().unwrap();
+                match *guard {
+                    AppMode::Normal => {}
+                    _ => {
+                        *guard = AppMode::Normal;
+                        self.input.clear();
+                        self.last_error = None;
+                        let mut output = self.state.output.lock().unwrap();
+                        *output = crate::app_state::AppOutput::Text("Edit cancelled.".to_string());
+                    }
+                }
+            }
+            KeyCode::Up => {
+                let is_normal = matches!(*self.state.mode.lock().unwrap(), AppMode::Normal);
+                if is_normal && !self.history.is_empty() {
+                    if let Some(i) = self.history_index {
+                        if i > 0 {
+                            self.history_index = Some(i - 1);
+                            self.input = self.history[i - 1].clone();
+                        }
+                    } else {
+                        self.history_index = Some(self.history.len() - 1);
+                        self.input = self.history[self.history.len() - 1].clone();
+                    }
+                }
+            }
+            KeyCode::Down => {
+                let is_normal = matches!(*self.state.mode.lock().unwrap(), AppMode::Normal);
+                if is_normal {
+                    if let Some(i) = self.history_index {
+                        if i + 1 < self.history.len() {
+                            self.history_index = Some(i + 1);
+                            self.input = self.history[i + 1].clone();
+                        } else {
+                            self.history_index = None;
+                            self.input.clear();
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -145,13 +314,69 @@ impl App {
                         frame.render_widget(table, main_area);
                     }
                 }
+                AppOutput::Ticket(t) => {
+                    let header = Row::new(vec!["ID", "Title", "Subject", "Priority", "Closed"])
+                        .style(Style::default().fg(Color::Yellow).bold())
+                        .bottom_margin(1);
+
+                    let rows = vec![Row::new(vec![
+                        t.id.clone(),
+                        t.title.clone(),
+                        t.subject.clone(),
+                        format!("{:?}", t.priority),
+                        if t.closed {
+                            "Yes".to_string()
+                        } else {
+                            "No".to_string()
+                        },
+                    ])];
+
+                    let widths = [
+                        Constraint::Length(36),
+                        Constraint::Max(20),
+                        Constraint::Percentage(40),
+                        Constraint::Length(15),
+                        Constraint::Length(6),
+                    ];
+
+                    let table = Table::new(rows, widths)
+                        .header(header)
+                        .block(
+                            Block::default()
+                                .borders(Borders::ALL)
+                                .title("Ticket Details"),
+                        )
+                        .column_spacing(2);
+
+                    frame.render_widget(table, main_area);
+                }
             }
         }
 
-        let input_text = format!("> {}", self.input);
+        let prompt_prefix = {
+            let guard = self.state.mode.lock().unwrap();
+            match &*guard {
+                AppMode::Normal => "> ".to_string(),
+                AppMode::ChoosingEditField(_) => {
+                    "Edit: (1) Title, (2) Subject, (3) Priority, (4) Close | Choose option: "
+                        .to_string()
+                }
+                AppMode::EditingTitle(_) => "Enter new Title (or Esc to cancel): ".to_string(),
+                AppMode::EditingSubject(_) => "Enter new Subject (or Esc to cancel): ".to_string(),
+                AppMode::EditingPriority(_) => {
+                    "Enter new Priority [standard/prioritized/urgent] (or Esc to cancel): "
+                        .to_string()
+                }
+            }
+        };
+
+        let input_text = format!("{}{}", prompt_prefix, self.input);
         let input_widget = Paragraph::new(input_text);
         frame.render_widget(input_widget, status_area);
 
-        frame.set_cursor_position((status_area.x + 2 + self.input.len() as u16, status_area.y));
+        frame.set_cursor_position((
+            status_area.x + prompt_prefix.len() as u16 + self.input.len() as u16,
+            status_area.y,
+        ));
     }
 }
